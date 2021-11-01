@@ -96,7 +96,7 @@ client.connect(brokerAddress, 8883)
 
 
 # Simulation
-for k in range(N+1):
+for k in range(4):
     
    t_k = k*Ts
    
