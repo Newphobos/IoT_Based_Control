@@ -1,15 +1,22 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Oct 26 15:15:40 2021
 
-@author: kcnab
-"""
-
+import paho.mqtt.client as mqtt
 import numpy as np
 import matplotlib.pyplot as plt
+import 
+import nidaqmx
+from nidaqmx.constants import TerminalConfiguration
+
+
+#DAQ settings
+
+# MQTT details
+brokerAddress = "826eea61073a42b7a79b6b4633c6169b.s2.eu.hivemq.cloud"
+userName = "Temp_data"
+passWord = "Newphobos4654@"
+topic = "AirHeater/tem_C"
 
 # Simulation Parameters
-
+wait = 5  # delay time of the loop
 Ts = 0.1 # Sampling Time
 Tstop = 500 # End of Simulation Time
 N = int(Tstop/Ts) # Simulation length
@@ -19,13 +26,25 @@ N = int(Tstop/Ts) # Simulation length
 T_out_p = 22 # Initial Vaue
 t_array = np.zeros(N+1) # Initialization of e vector
 u_array = np.zeros(N+1) # Initialization of u vector
-T_array = np.zeros(N+1)
+T_array = np.zeros(N+1) # Array to store filter temperature
 Tenv = 21.5
-up = 0
-ep=0
+up = 0 
+ep=0 
 
 tempr = Tenv
 yf_prev = Tenv
+
+
+
+def on_connect(client, userdata, flags, rc):
+    
+    if rc == 0:
+        print("Connected successfully")
+    else:
+        print("Connect returned result code: " + str(rc))
+
+def on_message(client, userdata, msg):
+    print("Received message: " + msg.topic + " -> " + msg.payload.decode("utf-8"))
 
 def Air_Heater(U):
     
@@ -68,9 +87,18 @@ def LP_filter(T):
     yf_pre = yf
     return yf
 
+# Create the client
+
+client = mqtt.Client()
+client.on_connect = on_connect
+client.on_message = on_message
+client.tls_set(tls_version=mqtt.ssl.PROTOCOL_TLS)
+client.username_pw_set(userName, passWord)
+client.connect(brokerAddress, 8883)
+
 
 # Simulation
-for k in range(N+1):
+for k in range(4):
     
    t_k = k*Ts
    
@@ -85,8 +113,12 @@ for k in range(N+1):
 
    t_array[k] = t_k
    u_array[k] = u_k
-   T_array[k] = T_k
-    
+   T_array[k] = temp_f
+   
+   data =str("{:.2f}".format(temp_f)) + " " + "deg C"
+   client.publish(topic,data)
+   
+   time.sleep(wait)
    
 # Plot Process Value
 plt.figure(1)
