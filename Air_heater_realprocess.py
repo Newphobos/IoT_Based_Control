@@ -9,6 +9,16 @@ from nidaqmx.constants import TerminalConfiguration
 
 #DAQ settings
 
+task_ai = nidaqmx.Task()
+task_ai.ai_channels.add_ai_voltage_chan("DAQAir/ai0",terminal_config=TerminalConfiguration.RSE)
+task_ai.start()
+
+task_ao = nidaqmx.Task()
+task_ao.ao_channels.add_ao_voltage_chan("DAQAir/ao0",'mychannel',0,5)
+task_ao.start()
+
+
+
 # MQTT details
 brokerAddress = "826eea61073a42b7a79b6b4633c6169b.s2.eu.hivemq.cloud"
 userName = "Temp_data"
@@ -46,14 +56,14 @@ def on_connect(client, userdata, flags, rc):
 def on_message(client, userdata, msg):
     print("Received message: " + msg.topic + " -> " + msg.payload.decode("utf-8"))
 
-def Air_Heater(U):
+def Air_Heater_Real():
     
-    #Model Parameters
-    Kh = 3.5
-    theta_t = 22
-      
-    T_out = T_out_p + Ts*(1/theta_t*(-T_out_p + Kh * U + Tenv));
-    return T_out;
+    ToutVolt = task_ai.read()
+    if ToutVolt<1:
+        ToutVolt = 1
+    if ToutVolt>5:
+        ToutVolt = 5
+    return ToutVolt
     
 def clip(u):
     if (u>5):
@@ -73,6 +83,8 @@ def PID(ym):
     u = up + kp *(e - ep) + (kp/Ti)*Ts*e
     ep = e
     u = clip(u)
+    
+    task_ao.write(u)
     return u
     
 def LP_filter(T):
@@ -87,6 +99,11 @@ def LP_filter(T):
     yf_pre = yf
     return yf
 
+# function to convert voltage to degree celcius
+def scaling(x,x1,x2,y1,y2):
+    y = y1 + (x-x1)*(y2-y1)/(x2-x1)
+    return y
+    
 # Create the client
 
 client = mqtt.Client()
@@ -102,10 +119,10 @@ for k in range(4):
     
    t_k = k*Ts
    
-   T_k = Air_Heater(up)
-   T_out_p = T_k
+   T_volt = Air_Heater_Real()
+   T_degree = scaling(T_volt,1,5,0,50)
    
-   temp_f = LP_filter(T_k)
+   temp_f = LP_filter(T_degree)
    yf_prev = temp_f
    
    u_k=PID(temp_f)
