@@ -14,9 +14,10 @@ brokerAddress = "826eea61073a42b7a79b6b4633c6169b.s2.eu.hivemq.cloud"
 userName = "Temp_data"
 passWord = "Newphobos4654@"
 topic = "AirHeater/tem_C"
+topic1 = "AirHeater/control_u"
 
 # Simulation Parameters
-
+wait = 15  # delay time of the loop in sec
 Ts = 0.1 # Sampling Time
 Tstop = 500 # End of Simulation Time
 N = int(Tstop/Ts) # Simulation length
@@ -96,7 +97,7 @@ client.connect(brokerAddress, 8883)
 
 
 # Simulation
-for k in range(4):
+for k in range(20):
     
    t_k = k*Ts
    
@@ -113,10 +114,14 @@ for k in range(4):
    u_array[k] = u_k
    T_array[k] = temp_f
    
-   data =str("{:.2f}".format(temp_f)) + " " + "deg C"
+  
+   data = "{:.2f}".format(temp_f)
+  # data1 = "{:.2f}".format(u_k)
    client.publish(topic,data)
-   
-   time.sleep(5)
+   #client.publish(topic1,data1)
+  
+
+   time.sleep(wait)
    
 # Plot Process Value
 plt.figure(1)
